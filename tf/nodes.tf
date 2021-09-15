@@ -1,5 +1,6 @@
-resource "azurerm_network_interface" "controlplanenic" {
-  name                = "controlplane-nic"
+resource "azurerm_network_interface" "nodenic" {
+  count               = var.node_count
+  name                = "node${count.index}-nic"
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
 
@@ -7,17 +8,12 @@ resource "azurerm_network_interface" "controlplanenic" {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.this.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.this.id
   }
 }
 
-resource "azurerm_network_interface_security_group_association" "this" {
-  network_interface_id      = azurerm_network_interface.controlplanenic.id
-  network_security_group_id = azurerm_network_security_group.this.id
-}
-
-resource "azurerm_linux_virtual_machine" "controlplane" {
-  name                            = "controlplane-vm"
+resource "azurerm_linux_virtual_machine" "nodevm" {
+  count                           = var.node_count
+  name                            = "node${count.index}-vm"
   resource_group_name             = azurerm_resource_group.this.name
   location                        = azurerm_resource_group.this.location
   size                            = "Standard_B2s"
@@ -25,7 +21,7 @@ resource "azurerm_linux_virtual_machine" "controlplane" {
   admin_password                  = var.controlplanepassword
   disable_password_authentication = false
   network_interface_ids = [
-    azurerm_network_interface.controlplanenic.id,
+    azurerm_network_interface.nodenic.*.id[count.index]
   ]
 
   os_disk {
@@ -39,6 +35,4 @@ resource "azurerm_linux_virtual_machine" "controlplane" {
     sku       = "18.04-LTS"
     version   = "latest"
   }
-
-
 }
